@@ -1,8 +1,7 @@
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
-const puppeteer = require('puppeteer-core');
-const chromium = require('@sparticuz/chromium');
+const puppeteer = require('puppeteer');
 
 const app = express();
 const server = http.createServer(app);
@@ -23,14 +22,17 @@ wss.on('connection', (ws) => {
         if (data.action === 'start') {
             try {
                 if (!browser) {
-                    ws.send(JSON.stringify({ status: 'Iniciando navegador em nuvem...' }));
+                    ws.send(JSON.stringify({ status: 'Iniciando navegador no container Docker...' }));
                     
                     browser = await puppeteer.launch({
-                        args: chromium.args,
-                        defaultViewport: chromium.defaultViewport,
-                        executablePath: await chromium.executablePath(),
-                        headless: chromium.headless,
-                        ignoreHTTPSErrors: true,
+                        headless: "new",
+                        args: [
+                            '--no-sandbox',
+                            '--disable-setuid-sandbox',
+                            '--disable-dev-shm-usage', // Evita o uso excessivo de memória
+                            '--use-fake-ui-for-media-stream',
+                            '--disable-audio-output'
+                        ]
                     });
                     page = await browser.newPage();
                 }

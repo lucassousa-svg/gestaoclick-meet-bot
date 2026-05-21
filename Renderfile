@@ -2,6 +2,6 @@ services:
   - type: web
     name: gestaoclick-meet-bot
     runtime: node
-    buildCommand: npm run build
+    buildCommand: npm install
     startCommand: npm start
     plan: free

@@ -22,11 +22,14 @@ wss.on('connection', (ws) => {
         if (data.action === 'start') {
             try {
                 if (!browser) {
-                    ws.send(JSON.stringify({ status: 'Iniciando navegador oculto no sistema...' }));
+                    ws.send(JSON.stringify({ status: 'Iniciando navegador integrado...' }));
                     
-                    // Usa as variáveis nativas que configuramos no painel do Render
+                    // Deixa o Puppeteer localizar o executável instalado no build de forma automática
+                    const exePath = puppeteer.executablePath();
+                    console.log('Usando Chrome em:', exePath);
+
                     browser = await puppeteer.launch({
-                        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+                        executablePath: exePath,
                         headless: "new",
                         args: [
                             '--no-sandbox',
@@ -41,7 +44,7 @@ wss.on('connection', (ws) => {
                 ws.send(JSON.stringify({ status: `Entrando na reunião: ${data.url}` }));
                 await page.goto(data.url, { waitUntil: 'networkidle2' });
 
-                // Aguarda e tenta clicar no botão de pedir para participar
+                // Tenta clicar no botão de participar após carregar
                 setTimeout(async () => {
                     try {
                         const buttons = await page.$$('button');
@@ -54,7 +57,7 @@ wss.on('connection', (ws) => {
                             }
                         }
                     } catch (err) {
-                        console.log('Botão não encontrado ou já clicado');
+                        console.log('Botão não encontrado');
                     }
                 }, 5000);
 

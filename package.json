@@ -4,8 +4,7 @@
   "description": "Bot para entrar no Google Meet",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "build": "npm install && PUPPETEER_CACHE_DIR=bot-chrome npx puppeteer browsers install chrome"
+    "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",

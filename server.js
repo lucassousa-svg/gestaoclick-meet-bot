@@ -1,7 +1,8 @@
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
+const chromium = require('@sparticuz/chromium');
 
 const app = express();
 const server = http.createServer(app);
@@ -22,21 +23,14 @@ wss.on('connection', (ws) => {
         if (data.action === 'start') {
             try {
                 if (!browser) {
-                    ws.send(JSON.stringify({ status: 'Iniciando navegador integrado...' }));
+                    ws.send(JSON.stringify({ status: 'Iniciando navegador em nuvem...' }));
                     
-                    // Deixa o Puppeteer localizar o executável instalado no build de forma automática
-                    const exePath = puppeteer.executablePath();
-                    console.log('Usando Chrome em:', exePath);
-
                     browser = await puppeteer.launch({
-                        executablePath: exePath,
-                        headless: "new",
-                        args: [
-                            '--no-sandbox',
-                            '--disable-setuid-sandbox',
-                            '--use-fake-ui-for-media-stream',
-                            '--disable-audio-output'
-                        ]
+                        args: chromium.args,
+                        defaultViewport: chromium.defaultViewport,
+                        executablePath: await chromium.executablePath(),
+                        headless: chromium.headless,
+                        ignoreHTTPSErrors: true,
                     });
                     page = await browser.newPage();
                 }
@@ -44,7 +38,6 @@ wss.on('connection', (ws) => {
                 ws.send(JSON.stringify({ status: `Entrando na reunião: ${data.url}` }));
                 await page.goto(data.url, { waitUntil: 'networkidle2' });
 
-                // Tenta clicar no botão de participar após carregar
                 setTimeout(async () => {
                     try {
                         const buttons = await page.$$('button');

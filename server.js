@@ -22,9 +22,11 @@ wss.on('connection', (ws) => {
         if (data.action === 'start') {
             try {
                 if (!browser) {
-                    ws.send(JSON.stringify({ status: 'Iniciando navegador oculto...' }));
+                    ws.send(JSON.stringify({ status: 'Iniciando navegador oculto no sistema...' }));
                     
+                    // Usa as variáveis nativas que configuramos no painel do Render
                     browser = await puppeteer.launch({
+                        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
                         headless: "new",
                         args: [
                             '--no-sandbox',

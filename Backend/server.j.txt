@@ -1,0 +1,106 @@
+// SALVE ESTE ARQUIVO COMO: server.js DENTRO DA PASTA backend
+const express = require('express');
+const { WebSocketServer } = require('ws');
+const puppeteer = require('puppeteer');
+const http = require('http');
+
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.get('/', (req, res) => res.send('🤖 Bot GestãoClick Operacional e Ativo!'));
+
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server });
+
+wss.on('connection', (ws) => {
+  let browser = null;
+  let page = null;
+
+  ws.on('message', async (message) => {
+    try {
+      const data = JSON.parse(message);
+
+      if (data.action === 'start_bot') {
+        console.log(`🤖 Iniciando Bot para a sala do Meet: ${data.url}`);
+        ws.send(JSON.stringify({ type: 'status', msg: 'Instanciando Navegador Virtual' }));
+
+        browser = await puppeteer.launch({
+          headless: true,
+          args: [
+            '--use-fake-ui-for-media-stream',
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage'
+          ]
+        });
+
+        page = await browser.newPage();
+        const context = browser.defaultBrowserContext();
+        await context.overridePermissions('https://meet.google.com', ['microphone', 'camera']);
+
+        await page.goto(data.url, { waitUntil: 'networkidle2' });
+        ws.send(JSON.stringify({ type: 'status', msg: 'Bando batendo na porta do Meet...' }));
+
+        const nameInputSelector = 'input[type="text"]';
+        await page.waitForSelector(nameInputSelector, { timeout: 10000 });
+        await page.type(nameInputSelector, `🤖 Coach AI (${data.consultant})`);
+
+        await page.evaluate(() => {
+          const buttons = Array.from(document.querySelectorAll('button'));
+          const joinBtn = buttons.find(b => 
+            b.textContent.includes('Pedir para participar') || 
+            b.textContent.includes('Participar agora') || 
+            b.textContent.includes('Pular')
+          );
+          if (joinBtn) joinBtn.click();
+        });
+
+        ws.send(JSON.stringify({ type: 'status', msg: 'Aguardando Consultor aceitar o Bot' }));
+
+        await page.exposeFunction('sendTranscriptToFront', (text) => {
+          if (ws.readyState === ws.OPEN) {
+            ws.send(JSON.stringify({ type: 'transcript', text: text }));
+          }
+        });
+
+        await page.evaluate(() => {
+          const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+          if (!SR) return;
+
+          const recognition = new SR();
+          recognition.lang = 'pt-BR';
+          recognition.continuous = true;
+          recognition.interimResults = false;
+
+          recognition.onresult = (event) => {
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+              if (event.results[i].isFinal) {
+                window.sendTranscriptToFront(event.results[i][0].transcript);
+              }
+            }
+          };
+          recognition.onerror = () => setTimeout(() => recognition.start(), 1000);
+          recognition.onend = () => recognition.start();
+          recognition.start();
+        });
+      }
+
+      if (data.action === 'stop_bot') {
+        console.log('🛑 Fechando navegador do Bot.');
+        if (browser) await browser.close();
+      }
+
+    } catch (err) {
+      console.error(err);
+      ws.send(JSON.stringify({ type: 'status', msg: 'Erro Crítico no Servidor' }));
+    }
+  });
+
+  ws.on('close', async () => {
+    if (browser) await browser.close();
+  });
+});
+
+server.listen(port, () => {
+  console.log(`🚀 Servidor rodando com sucesso na porta ${port}`);
+});

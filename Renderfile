@@ -1,7 +1,5 @@
 services:
   - type: web
     name: gestaoclick-meet-bot
-    runtime: node
-    buildCommand: npm install
-    startCommand: npm start
+    runtime: docker
     plan: free

@@ -2,7 +2,6 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const puppeteer = require('puppeteer');
-const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
@@ -25,11 +24,7 @@ wss.on('connection', (ws) => {
                 if (!browser) {
                     ws.send(JSON.stringify({ status: 'Iniciando navegador oculto...' }));
                     
-                    // Aponta para o local exato onde o Render instala o Chrome
-                    const chromePath = '/opt/render/.cache/puppeteer/chrome/linux-121.0.6167.85/chrome-linux/chrome';
-
                     browser = await puppeteer.launch({
-                        executablePath: chromePath,
                         headless: "new",
                         args: [
                             '--no-sandbox',

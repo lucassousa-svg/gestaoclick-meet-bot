@@ -22,23 +22,37 @@ wss.on('connection', (ws) => {
         if (data.action === 'start') {
             try {
                 if (!browser) {
-                    ws.send(JSON.stringify({ status: 'Iniciando navegador no container Docker...' }));
+                    ws.send(JSON.stringify({ status: 'Iniciando navegador em modo econômico...' }));
                     
                     browser = await puppeteer.launch({
                         headless: "new",
                         args: [
                             '--no-sandbox',
                             '--disable-setuid-sandbox',
-                            '--disable-dev-shm-usage', // Evita o uso excessivo de memória
+                            '--disable-dev-shm-usage', 
                             '--use-fake-ui-for-media-stream',
-                            '--disable-audio-output'
+                            '--disable-audio-output',
+                            '--disable-gpu',                 // Desativa processamento gráfico pesado
+                            '--disable-software-rasterizer',  // Economiza CPU e RAM na nuvem
+                            '--single-process',               // Força o Chrome a usar apenas UM processo (salva muita RAM)
+                            '--no-zygote'                     // Desativa processos base inúteis para o bot
                         ]
                     });
                     page = await browser.newPage();
+                    
+                    // Bloqueia o carregamento de imagens para economizar ainda mais memória
+                    await page.setRequestInterception(true);
+                    page.on('request', (req) => {
+                        if (req.resourceType() === 'image') {
+                            req.abort();
+                        } else {
+                            req.continue();
+                        }
+                    });
                 }
 
                 ws.send(JSON.stringify({ status: `Entrando na reunião: ${data.url}` }));
-                await page.goto(data.url, { waitUntil: 'networkidle2' });
+                await page.goto(data.url, { waitUntil: 'component' }); // Carrega apenas o essencial, sem esperar scripts pesados de terceiros
 
                 setTimeout(async () => {
                     try {
@@ -54,7 +68,7 @@ wss.on('connection', (ws) => {
                     } catch (err) {
                         console.log('Botão não encontrado');
                     }
-                }, 5000);
+                }, 7000); // 7 segundos de segurança para o plano free responder
 
             } catch (error) {
                 ws.send(JSON.stringify({ status: `Erro: ${error.message}` }));

@@ -52,7 +52,8 @@ wss.on('connection', (ws) => {
                 }
 
                 ws.send(JSON.stringify({ status: `Entrando na reunião: ${data.url}` }));
-                await page.goto(data.url, { waitUntil: 'component' }); // Carrega apenas o essencial, sem esperar scripts pesados de terceiros
+                // Corrigido para carregar de forma ultra rápida e econômica
+                await page.goto(data.url, { waitUntil: 'domcontentloaded' }); 
 
                 setTimeout(async () => {
                     try {

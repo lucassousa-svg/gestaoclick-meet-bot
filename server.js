@@ -54,35 +54,48 @@ wss.on('connection', (ws) => {
                 ws.send(JSON.stringify({ status: `Entrando na reunião: ${data.url}` }));
                 await page.goto(data.url, { waitUntil: 'domcontentloaded' }); 
 
-                // Aguarda 10 segundos para a página do Meet carregar os elementos na máquina gratuita
+                // Aguarda 10 segundos para a página estabilizar na nuvem
                 setTimeout(async () => {
                     try {
                         ws.send(JSON.stringify({ status: 'Preenchendo nome do robô...' }));
                         
-                        // Localiza o campo de texto de nome e digita "Robô GestãoClick"
-                        const inputField = await page.$('input[type="text"]');
-                        if (inputField) {
-                            await inputField.click();
-                            await page.keyboard.type('Robo GestaoClick');
-                            // Pequena pausa de 1 segundo para o Meet validar o nome digitado
-                            await new Promise(r => setTimeout(r, 1000)); 
+                        // Injeta o nome diretamente no elemento (imune a quebras de DOM)
+                        const nameFilled = await page.evaluate(() => {
+                            const input = document.querySelector('input[type="text"]');
+                            if (input) {
+                                input.value = 'Robo GestaoClick';
+                                // Dispara os eventos para o Google Meet saber que escrevemos nele
+                                input.dispatchEvent(new Event('input', { bubbles: true }));
+                                input.dispatchEvent(new Event('change', { bubbles: true }));
+                                return true;
+                            }
+                            return false;
+                        });
+
+                        if (nameFilled) {
+                            ws.send(JSON.stringify({ status: 'Nome preenchido! Aguardando validação...' }));
+                            await new Promise(r => setTimeout(r, 1500)); 
                         }
 
                         ws.send(JSON.stringify({ status: 'Procurando botão de participar...' }));
-                        const buttons = await page.$$('button');
-                        let clicou = false;
-
-                        for (let button of buttons) {
-                            let text = await page.evaluate(el => el.textContent, button);
-                            if (text.includes('Pedir para participar') || text.includes('Ask to join') || text.includes('Participar')) {
-                                await button.click();
-                                ws.send(JSON.stringify({ status: 'Sucesso: Botão "Pedir para participar" clicado!' }));
-                                clicou = true;
-                                break;
+                        
+                        // Executa o clique diretamente dentro do navegador para evitar o erro "detached"
+                        const clicked = await page.evaluate(() => {
+                            const buttons = Array.from(document.querySelectorAll('button'));
+                            const target = buttons.find(b => {
+                                const text = b.textContent || '';
+                                return text.includes('Pedir para participar') || text.includes('Ask to join') || text.includes('Participar');
+                            });
+                            if (target) {
+                                target.click();
+                                return true;
                             }
-                        }
+                            return false;
+                        });
 
-                        if (!clicou) {
+                        if (clicked) {
+                            ws.send(JSON.stringify({ status: 'Sucesso: Botão "Pedir para participar" clicado!' }));
+                        } else {
                             ws.send(JSON.stringify({ status: 'Aviso: Botão não encontrado. Verifique se a reunião está aberta.' }));
                         }
 

@@ -36,18 +36,12 @@ wss.on('connection', (ws) => {
                             '--disable-software-rasterizer',  
                             '--single-process',               
                             '--no-zygote',
-                            // CAMUFLAGEM ANTIBOT:
-                            '--disable-blink-features=AutomationControlled', // Esconde o fato de ser um robô (remove o navigator.webdriver)
-                            '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' // Finge ser Windows
+                            '--disable-blink-features=AutomationControlled', // Camuflagem nativa e segura
+                            '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
                         ]
                     });
                     page = await browser.newPage();
                     
-                    // Remove vestígios extras de automação via script injetado
-                    await page.evaluateOnNewDocument(() => {
-                        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-                    });
-
                     // Bloqueia imagens para economizar memória RAM
                     await page.setRequestInterception(true);
                     page.on('request', (req) => {
@@ -62,7 +56,7 @@ wss.on('connection', (ws) => {
                 ws.send(JSON.stringify({ status: `Entrando na reunião: ${data.url}` }));
                 await page.goto(data.url, { waitUntil: 'domcontentloaded' }); 
 
-                // Aguarda 10 segundos para a página estabilizar
+                // Aguarda 10 segundos para o Meet carregar os elementos na tela
                 setTimeout(async () => {
                     try {
                         ws.send(JSON.stringify({ status: 'Preenchendo nome do robô...' }));

@@ -22,7 +22,7 @@ wss.on('connection', (ws) => {
         if (data.action === 'start') {
             try {
                 if (!browser) {
-                    ws.send(JSON.stringify({ status: 'Iniciando navegador em modo econômico...' }));
+                    ws.send(JSON.stringify({ status: 'Iniciando navegador camuflado...' }));
                     
                     browser = await puppeteer.launch({
                         headless: "new",
@@ -35,11 +35,19 @@ wss.on('connection', (ws) => {
                             '--disable-gpu',                 
                             '--disable-software-rasterizer',  
                             '--single-process',               
-                            '--no-zygote'                     
+                            '--no-zygote',
+                            // CAMUFLAGEM ANTIBOT:
+                            '--disable-blink-features=AutomationControlled', // Esconde o fato de ser um robô (remove o navigator.webdriver)
+                            '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' // Finge ser Windows
                         ]
                     });
                     page = await browser.newPage();
                     
+                    // Remove vestígios extras de automação via script injetado
+                    await page.evaluateOnNewDocument(() => {
+                        Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+                    });
+
                     // Bloqueia imagens para economizar memória RAM
                     await page.setRequestInterception(true);
                     page.on('request', (req) => {
@@ -54,17 +62,15 @@ wss.on('connection', (ws) => {
                 ws.send(JSON.stringify({ status: `Entrando na reunião: ${data.url}` }));
                 await page.goto(data.url, { waitUntil: 'domcontentloaded' }); 
 
-                // Aguarda 10 segundos para a página estabilizar na nuvem
+                // Aguarda 10 segundos para a página estabilizar
                 setTimeout(async () => {
                     try {
                         ws.send(JSON.stringify({ status: 'Preenchendo nome do robô...' }));
                         
-                        // Injeta o nome diretamente no elemento (imune a quebras de DOM)
                         const nameFilled = await page.evaluate(() => {
                             const input = document.querySelector('input[type="text"]');
                             if (input) {
                                 input.value = 'Robo GestaoClick';
-                                // Dispara os eventos para o Google Meet saber que escrevemos nele
                                 input.dispatchEvent(new Event('input', { bubbles: true }));
                                 input.dispatchEvent(new Event('change', { bubbles: true }));
                                 return true;
@@ -73,13 +79,12 @@ wss.on('connection', (ws) => {
                         });
 
                         if (nameFilled) {
-                            ws.send(JSON.stringify({ status: 'Nome preenchido! Aguardando validação...' }));
-                            await new Promise(r => setTimeout(r, 1500)); 
+                            ws.send(JSON.stringify({ status: 'Nome preenchido! Validando...' }));
+                            await new Promise(r => setTimeout(r, 2000)); 
                         }
 
-                        ws.send(JSON.stringify({ status: 'Procurando botão de participar...' }));
+                        ws.send(JSON.stringify({ status: 'Pressionando botão de participar...' }));
                         
-                        // Executa o clique diretamente dentro do navegador para evitar o erro "detached"
                         const clicked = await page.evaluate(() => {
                             const buttons = Array.from(document.querySelectorAll('button'));
                             const target = buttons.find(b => {
@@ -94,9 +99,9 @@ wss.on('connection', (ws) => {
                         });
 
                         if (clicked) {
-                            ws.send(JSON.stringify({ status: 'Sucesso: Botão "Pedir para participar" clicado!' }));
+                            ws.send(JSON.stringify({ status: 'Sucesso: Pedido de entrada enviado ao Meet!' }));
                         } else {
-                            ws.send(JSON.stringify({ status: 'Aviso: Botão não encontrado. Verifique se a reunião está aberta.' }));
+                            ws.send(JSON.stringify({ status: 'Aviso: Botão não encontrado.' }));
                         }
 
                     } catch (err) {
